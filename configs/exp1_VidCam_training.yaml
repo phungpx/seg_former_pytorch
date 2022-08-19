@@ -1,0 +1,368 @@
+data:
+  train:
+    module: torch.utils.data
+    class: DataLoader
+    DataLoader:
+      dataset:
+        module: flame.core.data.CamVid_dataset
+        class: CamVidDataset
+        CamVidDataset:
+          image_dir: '''/extdata/ocr/phungpx/projects/PHUNGPX/semantic_segmentation_pytorch/dataset/CamVid/train/'''
+          mask_dir: '''/extdata/ocr/phungpx/projects/PHUNGPX/semantic_segmentation_pytorch/dataset/CamVid/trainannot/'''
+          image_extent: '''.png'''
+          mask_extent: '''.png'''
+          classes:
+            sky: [[229, 255, 0], 0]
+            building: [[0, 179, 255], 1]
+            pole: [[0, 255, 208], 2]
+            road: [[252, 3, 219], 3]
+            pavement: [[252, 3, 69], 4]
+            tree: [[0, 64, 128], 5]
+            signsymbol: [[0, 0, 255], 6]
+            fence: [[0, 255, 0], 7]
+            car: [[255, 0, 0], 8]
+            pedestrian: [[128, 192, 0], 9]
+            bicyclist: [[0, 128, 128], 10]
+            unlabelled: [[128, 3, 69], 11]
+          imsize: (512, 512)
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+          transforms:
+            - iaa.Add(value=(-50, 50), per_channel=True)
+            - iaa.GaussianBlur(sigma=(0, 1))
+            - iaa.MotionBlur()
+            - iaa.Affine(rotate=(0, 45), shear=(-5, 5), fit_output=True)
+            - iaa.PerspectiveTransform(scale=(0, 0.1))
+            - iaa.ChangeColorTemperature()
+            - iaa.Clouds()
+          # require_transforms:
+          #   - iaa.Grayscale()
+      batch_size: 4
+      shuffle: True
+      pin_memory: True
+      num_workers: 12
+      drop_last: False
+
+  train_eval:
+    module: torch.utils.data
+    class: DataLoader
+    DataLoader:
+      dataset:
+        module: flame.core.data.CamVid_dataset
+        class: CamVidDataset
+        CamVidDataset:
+          image_dir: '''/extdata/ocr/phungpx/projects/PHUNGPX/semantic_segmentation_pytorch/dataset/CamVid/train/'''
+          mask_dir: '''/extdata/ocr/phungpx/projects/PHUNGPX/semantic_segmentation_pytorch/dataset/CamVid/trainannot/'''
+          image_extent: '''.png'''
+          mask_extent: '''.png'''
+          classes:
+            sky: [[229, 255, 0], 0]
+            building: [[0, 179, 255], 1]
+            pole: [[0, 255, 208], 2]
+            road: [[252, 3, 219], 3]
+            pavement: [[252, 3, 69], 4]
+            tree: [[0, 64, 128], 5]
+            signsymbol: [[0, 0, 255], 6]
+            fence: [[0, 255, 0], 7]
+            car: [[255, 0, 0], 8]
+            pedestrian: [[128, 192, 0], 9]
+            bicyclist: [[0, 128, 128], 10]
+            unlabelled: [[128, 3, 69], 11]
+          imsize: (512, 512)
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+      batch_size: 4
+      shuffle: False
+      pin_memory: True
+      num_workers: 12
+      drop_last: False
+
+  valid:
+    module: torch.utils.data
+    class: DataLoader
+    DataLoader:
+      dataset:
+        module: flame.core.data.CamVid_dataset
+        class: CamVidDataset
+        CamVidDataset:
+          image_dir: '''/extdata/ocr/phungpx/projects/PHUNGPX/semantic_segmentation_pytorch/dataset/CamVid/val/'''
+          mask_dir: '''/extdata/ocr/phungpx/projects/PHUNGPX/semantic_segmentation_pytorch/dataset/CamVid/valannot/'''
+          image_extent: '''.png'''
+          mask_extent: '''.png'''
+          classes:
+            sky: [[229, 255, 0], 0]
+            building: [[0, 179, 255], 1]
+            pole: [[0, 255, 208], 2]
+            road: [[252, 3, 219], 3]
+            pavement: [[252, 3, 69], 4]
+            tree: [[0, 64, 128], 5]
+            signsymbol: [[0, 0, 255], 6]
+            fence: [[0, 255, 0], 7]
+            car: [[255, 0, 0], 8]
+            pedestrian: [[128, 192, 0], 9]
+            bicyclist: [[0, 128, 128], 10]
+            unlabelled: [[128, 3, 69], 11]
+          imsize: (512, 512)
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+      batch_size: 4
+      shuffle: False
+      pin_memory: True
+      num_workers: 12
+      drop_last: False
+
+loss:
+  module: flame.core.loss.OHEM_cross_entropy
+  class: OHEMCrossEntropy
+  OHEMCrossEntropy:
+    ignore_label: 255
+    weight: None
+    thresh: 0.7
+    output_transform: 'lambda x: (x[0], x[1])'
+
+model:
+  module: flame.core.model.segformer
+  class: Model
+  Model:
+    backbone_pretrained: '''checkpoint/seg_former_pretrained/backbone_pretrained_weights/mit_b0.pth'''
+    pretrained: null
+    version: '''B0'''
+    num_classes: 12
+
+optim:
+  module: torch.optim
+  class: AdamW
+  AdamW:
+    params: config['model'].parameters()
+    lr: 0.001
+    weight_decay: 0.01
+
+train_evaluator:
+  module: flame.handlers.metric_evaluator
+  class: MetricEvaluator
+  MetricEvaluator:
+    dataset: config['data']['train_eval']
+    device: '''cuda'''
+
+valid_evaluator:
+  module: flame.handlers.metric_evaluator
+  class: MetricEvaluator
+  MetricEvaluator:
+    dataset: config['data']['valid']
+    device: '''cuda'''
+
+metrics:
+  module: flame.handlers.metric_evaluator
+  class: Metrics
+  Metrics:
+    metrics:
+      OHEM_ce_loss:
+        module: flame.core.metric.loss
+        class: Loss
+        Loss:
+          loss_fn: config['loss']
+          output_transform: 'lambda x: (x[0], x[1])'
+      Dices:
+        module: ignite.metrics
+        class: DiceCoefficient
+        DiceCoefficient:
+          cm:
+            module: ignite.metrics.confusion_matrix
+            class: ConfusionMatrix
+            ConfusionMatrix:
+              num_classes: 12
+              average: None
+              output_transform: 'lambda x: (x[0], x[1])'
+              device: '''cuda'''
+          ignore_index: 0  # background
+      IoU:
+        module: ignite.metrics
+        class: IoU
+        IoU:
+          cm:
+            module: ignite.metrics.confusion_matrix
+            class: ConfusionMatrix
+            ConfusionMatrix:
+              num_classes: 12
+              average: None
+              output_transform: 'lambda x: (x[0], x[1])'
+              device: '''cuda'''
+          ignore_index: 0  # background
+      mIoU:
+        module: ignite.metrics.metrics_lambda
+        class: MetricsLambda
+        MetricsLambda:
+          f: 'lambda IoUs: IoUs.mean()'
+          IoUs:
+            module: ignite.metrics
+            class: IoU
+            IoU:
+              cm:
+                module: ignite.metrics.confusion_matrix
+                class: ConfusionMatrix
+                ConfusionMatrix:
+                  num_classes: 12
+                  average: None
+                  output_transform: 'lambda x: (x[0], x[1])'
+                  device: '''cuda'''
+              ignore_index: 0  # background
+      mDice:
+        module: ignite.metrics.metrics_lambda
+        class: MetricsLambda
+        MetricsLambda:
+          f: 'lambda Dices: Dices.mean()'
+          Dices:
+            module: ignite.metrics
+            class: DiceCoefficient
+            DiceCoefficient:
+              cm:
+                module: ignite.metrics.confusion_matrix
+                class: ConfusionMatrix
+                ConfusionMatrix:
+                  num_classes: 12
+                  average: None
+                  output_transform: 'lambda x: (x[0], x[1])'
+                  device: '''cuda'''
+              ignore_index: 0  # background
+    attach_to:
+      train_evaluator: '''train'''
+      valid_evaluator: '''valid'''
+
+predictor:
+  module: flame.handlers.region_predictor
+  class: RegionPredictor
+  RegionPredictor:
+    evaluator_name: '''valid_evaluator'''
+    output_dir: '''checkpoint/CamVid/valid'''
+    output_img_ext: '''.jpg'''
+    output_mask_ext: '''.png'''
+    classes:
+      # color, class_idx, area_threshold
+      sky: [[229, 255, 0], 0, 0.]
+      building: [[0, 179, 255], 1, 0.]
+      pole: [[0, 255, 208], 2, 0.]
+      road: [[252, 3, 219], 3, 0.]
+      pavement: [[252, 3, 69], 4, 0.]
+      tree: [[0, 64, 128], 5, 0.]
+      signsymbol: [[0, 0, 255], 6, 0.]
+      fence: [[0, 255, 0], 7, 0.]
+      car: [[255, 0, 0], 8, 0.]
+      pedestrian: [[128, 192, 0], 9, 0.]
+      bicyclist: [[0, 128, 128], 10, 0.]
+      unlabelled: [[128, 3, 69], 11, 0.]
+    output_transform: 'lambda x: (torch.nn.Softmax(dim=1)(x[0]).round(), x[-1])'
+
+writer:
+  module: flame.handlers.tensorboard
+  class: TensorBoard
+  TensorBoard:
+    logdir: '''checkpoint/VidCam/'''
+
+logger:
+  module: flame.handlers.logger
+  class: Logger
+  Logger:
+    logdir: '''checkpoint/VidCam/'''
+    logname: '''VidCam'''
+
+screenlogger:
+  module: flame.handlers.screenlogger
+  class: ScreenLogger
+  ScreenLogger:
+    classes:
+      - '''sky'''
+      - '''building'''
+      - '''pole'''
+      - '''road'''
+      - '''pavement'''
+      - '''tree'''
+      - '''signsymbol'''
+      - '''fence'''
+      - '''car'''
+      - '''pedestrian'''
+      - '''bicyclist'''
+      - '''unlabelled'''
+    eval_names:
+      - '''train'''
+      - '''valid'''
+
+history:
+  module: flame.handlers.checkpoint
+  class: History
+
+checkpoint_loader:
+  module: flame.handlers.checkpoint
+  class: CheckpointLoader
+  CheckpointLoader:
+    checkpoint_path: ''''''
+    mode: '''train'''
+
+terminate_on_nan:
+  module: flame.handlers.terminate_on_nan
+  class: TerminateOnNan
+
+lr_scheduler:
+  module: flame.handlers.lr_scheduler
+  class: LRScheduler
+  LRScheduler:
+    score_name: '''OHEM_ce_loss'''
+    evaluator_name: '''valid_evaluator'''
+    scheduler:
+      module: flame.handlers.lr_schedulers
+      class: WarmupPolyLR
+      WarmupPolyLR:
+        optimizer: config['optim']
+        data_loader: config['data']['train']
+        max_epochs: config['engine']['Trainer']['max_epochs']
+        power: 0.9
+        warmup_scale: 10
+        warmup_ratio: 0.1
+        warmup: '''exp'''
+        last_epoch: -1
+
+# early_stopping:
+#   module: flame.handlers.early_stopping
+#   class: EarlyStopping
+#   EarlyStopping:
+#     score_name: '''OHEM_ce_loss'''
+#     evaluator_name: '''valid_evaluator'''
+#     mode: '''min'''
+#     patience: 20
+
+best_saver:
+  module: flame.handlers.checkpoint
+  class: BestSaver
+  BestSaver:
+    dirname: '''checkpoint/CamVid/'''
+    score_name: '''OHEM_ce_loss'''
+    evaluator_name: '''valid_evaluator'''
+    mode: '''min'''
+    n_saved: 1
+
+backup_saver:
+  module: flame.handlers.checkpoint
+  class: BackupSaver
+  BackupSaver:
+    modules:
+      - '''model'''
+      - '''optim'''
+      - '''backup_saver'''
+      - '''best_saver'''
+      - '''history'''
+      - '''lr_scheduler'''
+      # - '''early_stopping'''
+    dirname: '''checkpoint/CamVid/'''
+    save_interval: 1
+    n_saved: 1
+
+engine:
+  module: flame.core.engine.engine
+  class: Trainer
+  Trainer:
+    dataset: config['data']['train']
+    device: '''cuda'''
+    max_epochs: 10000
+
+extralibs:
+  iaa: imgaug.augmenters
+  torch: torch

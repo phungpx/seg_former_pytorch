@@ -1,0 +1,192 @@
+data:
+  test:
+    module: torch.utils.data
+    class: DataLoader
+    DataLoader:
+      dataset:
+        module: flame.core.data.CamVid_dataset
+        class: CamVidDataset
+        CamVidDataset:
+          image_dir: '''dataset/CamVid/train/'''
+          mask_dir: '''dataset/CamVid/trainannot/'''
+          image_extent: '''.png'''
+          mask_extent: '''.png'''
+          classes:
+            sky: [[229, 255, 0], 0]
+            building: [[0, 179, 255], 1]
+            pole: [[0, 255, 208], 2]
+            road: [[252, 3, 219], 3]
+            pavement: [[252, 3, 69], 4]
+            tree: [[0, 64, 128], 5]
+            signsymbol: [[0, 0, 255], 6]
+            fence: [[0, 255, 0], 7]
+            car: [[255, 0, 0], 8]
+            pedestrian: [[128, 192, 0], 9]
+            bicyclist: [[0, 128, 128], 10]
+            unlabelled: [[128, 3, 69], 11]
+          imsize: (512, 512)
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+      batch_size: 16
+      shuffle: False
+      pin_memory: True
+      num_workers: 12
+      drop_last: False
+
+model:
+  module: flame.core.model.seg_former.model
+  class: Model
+  Model:
+    version: '''B1'''
+    num_classes: 12
+
+metrics:
+  module: flame.handlers.metric_evaluator
+  class: Metrics
+  Metrics:
+    metrics:
+      OHEM_ce_loss:
+        module: flame.core.loss
+        class: Loss
+        Loss:
+          loss_fn:
+            module: flame.core.loss.OHEM_cross_entropy
+            class: OHEMCrossEntropy
+            OHEMCrossEntropy:
+              ignore_label: 255
+              weight: None
+              thresh: 0.7
+          output_transform: 'lambda x: (x[0], x[1])'
+      Dices:
+        module: ignite.metrics
+        class: DiceCoefficient
+        DiceCoefficient:
+          cm:
+            module: ignite.metrics.confusion_matrix
+            class: ConfusionMatrix
+            ConfusionMatrix:
+              num_classes: 12
+              average: None
+              output_transform: 'lambda x: (x[0], x[1])'
+              device: '''cuda'''
+          ignore_index: 0  # background
+      IoU:
+        module: ignite.metrics
+        class: IoU
+        IoU:
+          cm:
+            module: ignite.metrics.confusion_matrix
+            class: ConfusionMatrix
+            ConfusionMatrix:
+              num_classes: 12
+              average: None
+              output_transform: 'lambda x: (x[0], x[1])'
+              device: '''cuda'''
+          ignore_index: 0  # background
+      mIoU:
+        module: ignite.metrics.metrics_lambda
+        class: MetricsLambda
+        MetricsLambda:
+          f: 'lambda IoUs: IoUs.mean()'
+          IoUs:
+            module: ignite.metrics
+            class: IoU
+            IoU:
+              cm:
+                module: ignite.metrics.confusion_matrix
+                class: ConfusionMatrix
+                ConfusionMatrix:
+                  num_classes: 12
+                  average: None
+                  output_transform: 'lambda x: (x[0], x[1])'
+                  device: '''cuda'''
+              ignore_index: 0  # background
+      mDice:
+        module: ignite.metrics.metrics_lambda
+        class: MetricsLambda
+        MetricsLambda:
+          f: 'lambda Dices: Dices.mean()'
+          Dices:
+            module: ignite.metrics
+            class: DiceCoefficient
+            DiceCoefficient:
+              cm:
+                module: ignite.metrics.confusion_matrix
+                class: ConfusionMatrix
+                ConfusionMatrix:
+                  num_classes: 12
+                  average: None
+                  output_transform: 'lambda x: (x[0], x[1])'
+                  device: '''cuda'''
+              ignore_index: 0  # background
+    attach_to:
+      engine: '''test'''
+
+logger:
+  module: flame.handlers.logger
+  class: Logger
+  Logger:
+    logdir: '''checkpoint/VidCam/'''
+    logname: '''VidCam'''
+    run_mode: '''testing'''
+
+screenlogger:
+  module: flame.handlers.screenlogger
+  class: ScreenLogger
+  ScreenLogger:
+    classes:
+      - '''sky'''
+      - '''building'''
+      - '''pole'''
+      - '''road'''
+      - '''pavement'''
+      - '''tree'''
+      - '''signsymbol'''
+      - '''fence'''
+      - '''car'''
+      - '''pedestrian'''
+      - '''bicyclist'''
+      - '''unlabelled'''
+    eval_names:
+      - '''test'''
+
+checkpoint_loader:
+  module: flame.handlers.checkpoint
+  class: CheckpointLoader
+  CheckpointLoader:
+    checkpoint_path: '''checkpoint/CamVid/'''
+    mode: '''test'''
+
+predictor:
+  module: flame.handlers.region_predictor
+  class: RegionPredictor
+  RegionPredictor:
+    evaluator_name: '''engine'''
+    output_dir: '''checkpoint/CamVid/'''
+    output_img_ext: '''.jpg'''
+    output_mask_ext: '''.png'''
+    classes:
+      # color, class_idx, area_threshold
+      sky: [[229, 255, 0], 0, 0.]
+      building: [[0, 179, 255], 1, 0.]
+      pole: [[0, 255, 208], 2, 0.]
+      road: [[252, 3, 219], 3, 0.]
+      pavement: [[252, 3, 69], 4, 0.]
+      tree: [[0, 64, 128], 5, 0.]
+      signsymbol: [[0, 0, 255], 6, 0.]
+      fence: [[0, 255, 0], 7, 0.]
+      car: [[255, 0, 0], 8, 0.]
+      pedestrian: [[128, 192, 0], 9, 0.]
+      bicyclist: [[0, 128, 128], 10, 0.]
+      unlabelled: [[128, 3, 69], 11, 0.]
+    output_transform: 'lambda x: (torch.nn.Softmax(dim=1)(x[0]).round(), x[-1])'
+
+engine:
+  module: flame.core.engine.engine
+  class: Evaluator
+  Evaluator:
+    dataset: config['data']['test']
+    device: '''cuda'''
+
+extralibs:
+  torch: torch
