@@ -102,7 +102,7 @@ class EKYCDataset(Dataset):
             if mask_info['label'] in self.classes:
                 class_mask = self.classes[mask_info['label']][1]
                 points = np.int32([[x, y] for x, y in mask_info['points']])
-                image = cv2.fillPoly(image, pts=[points], color=class_mask)
+                mask = cv2.fillPoly(mask, pts=[points], color=class_mask)
         
         # visualize mask
         if self.save_mask_dir is not None:
