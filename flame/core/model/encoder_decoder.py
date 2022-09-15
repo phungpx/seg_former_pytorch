@@ -22,7 +22,8 @@ class EncoderDecoder(nn.Module):
                  auxiliary_head=None,
                  train_cfg=None,
                  test_cfg=None,
-                 backbone_pretrained=None):
+                 backbone_pretrained=None,
+                 device='cpu'):
         super(EncoderDecoder, self).__init__()
         self.backbone = backbone
         self.neck = neck
@@ -31,11 +32,12 @@ class EncoderDecoder(nn.Module):
 
         self.train_cfg = train_cfg
         self.test_cfg = test_cfg
+        self.device = device
         self.load_backbone_pretrained(pretrained=backbone_pretrained)
 
     def load_backbone_pretrained(self, pretrained: Optional[str] = None) -> None:
         if pretrained:
-            self.backbone.load_state_dict(torch.load(pretrained, map_location='cpu'), strict=False)
+            self.backbone.load_state_dict(torch.load(pretrained, map_location=self.device), strict=False)
 
     def extract_feat(self, img):
         """Extract features from images."""
@@ -63,7 +65,8 @@ class Model(nn.Module):
         auxiliary_head=None,
         train_cfg=None,
         test_cfg=None,
-        backbone_pretrained=None
+        backbone_pretrained=None,
+        device='cpu'
     ):
         super(Model, self).__init__()
         self.model = EncoderDecoder(
@@ -73,7 +76,8 @@ class Model(nn.Module):
             auxiliary_head,
             train_cfg,
             test_cfg,
-            backbone_pretrained
+            backbone_pretrained,
+            device
         )
 
         if pretrained is not None:

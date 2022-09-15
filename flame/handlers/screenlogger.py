@@ -57,16 +57,16 @@ class ScreenLogger(Module):
                     if len(self.classes) == len(metric_values) - 1:
                         metric_values = metric_values[1:]
 
-                    metric = PrettyTable(['Field Name', metric_name.upper()])  # heading of table
-                    for class_name, metric_value in zip(self.classes, metric_values):
-                        metric.add_row([class_name, metric_value])
+                    # metric = PrettyTable(['Field Name', metric_name.upper()])  # heading of table
+                    # for class_name, metric_value in zip(self.classes, metric_values):
+                    #     metric.add_row([class_name, metric_value])
 
-                        if self.writer is not None:
-                            self.writer.add_scalars(
-                                main_tag=eval_name,
-                                tag_scalar_dict={f'{metric_name}_{class_name}': metric_value},
-                                global_step=engine.state.epoch
-                            )
+                    #     if self.writer is not None:
+                    #         self.writer.add_scalars(
+                    #             main_tag=eval_name,
+                    #             tag_scalar_dict={f'{metric_name}_{class_name}': metric_value},
+                    #             global_step=engine.state.epoch
+                    #         )
 
-                    self.logger.info(f'\t*{metric_name}')
-                    self.logger.info(metric)
+                    # self.logger.info(f'\t*{metric_name}')
+                    # self.logger.info(metric)
