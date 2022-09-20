@@ -77,11 +77,11 @@ class Model(nn.Module):
             train_cfg,
             test_cfg,
             backbone_pretrained,
-            device
+            device='cpu'
         )
 
         if pretrained is not None:
-            state_dict = torch.load(pretrained, map_location='cpu')
+            state_dict = torch.load(pretrained, map_location=device)
             state_dict['state_dict'].pop("decode_head.conv_seg.weight")
             state_dict['state_dict'].pop("decode_head.conv_seg.bias")
             self.model.load_state_dict(state_dict=state_dict, strict=False)

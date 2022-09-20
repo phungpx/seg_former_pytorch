@@ -174,9 +174,10 @@ class BackupSaver(ignite.handlers.ModelCheckpoint, Module):
 
 
 class CheckpointLoader(Module):
-    def __init__(self, checkpoint_path, mode):
+    def __init__(self, checkpoint_path, mode, device='cpu'):
         super(CheckpointLoader, self).__init__()
         self.checkpoint_path = checkpoint_path
+        self.device = device
         if mode in ["train", "resume", "retrain", "test"]:
             self.mode = mode
         else:
@@ -190,7 +191,7 @@ class CheckpointLoader(Module):
 
     def _load_checkpoint(self, engine, mode):
         if mode in ["resume"]:
-            checkpoint = torch.load(self.checkpoint_path, map_location="cpu")
+            checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
 
             assert "engine" in self.frame, "The frame does not have engine."
             self.frame["engine"].engine.state.epoch = checkpoint.pop("last_epoch")
@@ -204,7 +205,7 @@ class CheckpointLoader(Module):
                 if isinstance(self.frame[module], ignite.handlers.ModelCheckpoint):
                     self._fake_saved(self.frame[module])
         elif mode in ["retrain", "test"]:
-            checkpoint = torch.load(self.checkpoint_path, map_location="cpu")
+            checkpoint = torch.load(self.checkpoint_path, map_location=self.device)
 
             assert "model" in self.frame, "The frame does not have model."
             self.frame["model"].load_state_dict(checkpoint)
