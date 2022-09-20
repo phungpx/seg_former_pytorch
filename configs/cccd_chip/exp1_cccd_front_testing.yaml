@@ -1,0 +1,220 @@
+data:
+  test:
+    module: torch.utils.data
+    class: DataLoader
+    DataLoader:
+      dataset:
+        module: flame.core.data.field_dataset
+        class: FieldDataset
+        FieldDataset:
+          dirnames:
+            - '''/extdata/ocr/quann7/projects/ekyc/dataset/08082022/CCCD_front_chip/test'''
+          classes:
+            BACKGROUND: [[0, 0, 0], 0, False, False]  # color, class_id, reduce_height, reduce_width
+            HEADING: [[175, 153, 144], 1, True, False]
+            HEADING_VI: [[175, 153, 144], 1, True, False]
+            V_ID: [[75, 25, 230], 2, True, False]
+            # V_NAME1: [[128, 0, 0], 3, True, False]
+            V_NAME2: [[48, 130, 245], 3, True, False]
+            V_BD: [[128, 128, 0], 4, True, False]
+            V_SEX: [[0, 101, 255], 5, True, False]
+            V_NAT: [[100, 150, 255], 6, True, False]
+            V_BP1: [[25, 225, 225], 7, True, False]
+            V_BP2: [[75, 180, 60], 8, True, False]
+            V_A1: [[180, 215, 255], 9, True, False]
+            V_A2: [[240, 240, 70], 10, True, False]
+            V_TL: [[100, 0, 100], 11, True, False]
+            FIGURE: [[255, 190, 230], 12, False, False]
+            QR_CODE: [[70, 70, 70], 13, False, False]
+            QR: [[70, 70, 70], 13, False, False]
+          reduce_ratios: (0.25, 0.25)
+          image_size: (512, 512)
+          image_extents: ['''.jpg''', '''.png''', '''.jpeg''', '''.JPG''', '''.PNG''', '''.JPEG''']
+          label_extent: '''.json'''
+      batch_size: 16
+      shuffle: False
+      pin_memory: True
+      num_workers: 12
+      drop_last: False
+
+model:
+  module: flame.core.model.encoder_decoder
+  class: Model
+  Model:
+    backbone:
+      module: flame.core.model.mix_transformer
+      class: mit_b0
+    decode_head:
+      module: flame.core.model.segformer_head
+      class: SegFormerHead
+      SegFormerHead:
+        # type: '''SegFormerHead'''
+        feature_strides: [4, 8, 16, 32]
+        in_channels: [32, 64, 160, 256]
+        in_index: [0, 1, 2, 3]
+        # channels: 128
+        num_classes: 14
+        # norm_cfg: norm_cfg
+        align_corners: False
+        decoder_params: 
+          embed_dim: 256
+        dropout_ratio: 0.1
+    device: '''cuda'''
+
+metrics:
+  module: flame.handlers.metric_evaluator
+  class: Metrics
+  Metrics:
+    metrics:
+      OHEM_ce_loss:
+        module: flame.core.metric.loss
+        class: Loss
+        Loss:
+          loss_fn:
+            module: flame.core.loss.OHEM_cross_entropy
+            class: OHEMCrossEntropy
+            OHEMCrossEntropy:
+              ignore_label: 255
+              weight: None
+              thresh: 0.7
+          output_transform: 'lambda x: (x[0], x[1])'
+      Dices:
+        module: ignite.metrics
+        class: DiceCoefficient
+        DiceCoefficient:
+          cm:
+            module: ignite.metrics.confusion_matrix
+            class: ConfusionMatrix
+            ConfusionMatrix:
+              num_classes: 14
+              average: None
+              output_transform: 'lambda x: (x[0], x[1])'
+              device: '''cuda'''
+          ignore_index: 0  # background
+      IoU:
+        module: ignite.metrics
+        class: IoU
+        IoU:
+          cm:
+            module: ignite.metrics.confusion_matrix
+            class: ConfusionMatrix
+            ConfusionMatrix:
+              num_classes: 14
+              average: None
+              output_transform: 'lambda x: (x[0], x[1])'
+              device: '''cuda'''
+          ignore_index: 0  # background
+      mIoU:
+        module: ignite.metrics.metrics_lambda
+        class: MetricsLambda
+        MetricsLambda:
+          f: 'lambda IoUs: IoUs.mean()'
+          IoUs:
+            module: ignite.metrics
+            class: IoU
+            IoU:
+              cm:
+                module: ignite.metrics.confusion_matrix
+                class: ConfusionMatrix
+                ConfusionMatrix:
+                  num_classes: 14
+                  average: None
+                  output_transform: 'lambda x: (x[0], x[1])'
+                  device: '''cuda'''
+              ignore_index: 0  # background
+      mDice:
+        module: ignite.metrics.metrics_lambda
+        class: MetricsLambda
+        MetricsLambda:
+          f: 'lambda Dices: Dices.mean()'
+          Dices:
+            module: ignite.metrics
+            class: DiceCoefficient
+            DiceCoefficient:
+              cm:
+                module: ignite.metrics.confusion_matrix
+                class: ConfusionMatrix
+                ConfusionMatrix:
+                  num_classes: 14
+                  average: None
+                  output_transform: 'lambda x: (x[0], x[1])'
+                  device: '''cuda'''
+              ignore_index: 0  # background
+    attach_to:
+      engine: '''test'''
+
+logger:
+  module: flame.handlers.logger
+  class: Logger
+  Logger:
+    logdir: '''checkpoint/EKYCs/cccd_front_chip/'''
+    logname: '''cccd_front_chip'''
+    run_mode: '''testing'''
+
+screenlogger:
+  module: flame.handlers.screenlogger
+  class: ScreenLogger
+  ScreenLogger:
+    classes:
+      - '''BACKGROUND'''
+      - '''HEADING'''
+      - '''HEADING_VI'''
+      - '''V_ID'''
+      - '''V_NAME2'''
+      - '''V_BD'''
+      - '''V_SEX'''
+      - '''V_NAT'''
+      - '''V_BP1'''
+      - '''V_BP2'''
+      - '''V_A1'''
+      - '''V_A2'''
+      - '''V_TL'''
+      - '''FIGURE'''
+      - '''QR_CODE'''
+      - '''QR'''
+    eval_names:
+      - '''test'''
+
+checkpoint_loader:
+  module: flame.handlers.checkpoint
+  class: CheckpointLoader
+  CheckpointLoader:
+    checkpoint_path: '''checkpoint/CCCD_front_chip/2209181043/best_model_581_OHEM_ce_loss=-0.1892.pt'''
+    mode: '''test'''
+
+predictor:
+  module: flame.handlers.region_predictor
+  class: RegionPredictor
+  RegionPredictor:
+    evaluator_name: '''engine'''
+    output_dir: '''checkpoint/CCCD_front_chip/2209181043/best_model_581_OHEM_ce_loss=-0.1892/'''
+    output_img_ext: '''.jpg'''
+    output_mask_ext: '''.png'''
+    classes:
+      # color, class_idx, area_threshold
+      BACKGROUND: [[0, 0, 0], 0, 0.]
+      HEADING: [[175, 153, 144], 1, 0.]
+      V_ID: [[75, 25, 230], 2, 0.]
+      # V_NAME1: [[128, 0, 0], 3, 0.]
+      V_NAME2: [[48, 130, 245], 3, 0.]
+      V_BD: [[128, 128, 0], 4, 0.]
+      V_SEX: [[0, 101, 255], 5, 0.]
+      V_NAT: [[100, 150, 255], 6, 0.]
+      V_BP1: [[25, 225, 225], 7, 0.]
+      V_BP2: [[75, 180, 60], 8, 0.]
+      V_A1: [[180, 215, 255], 9, 0.]
+      V_A2: [[240, 240, 70], 10, 0.]
+      V_TL: [[100, 0, 100], 11, 0.]
+      FIGURE: [[255, 190, 230], 12, 0.]
+      QR_CODE: [[70, 70, 70], 13, 0.]
+    output_transform: 'lambda x: (torch.nn.Softmax(dim=1)(x[0]).round(), x[-1])'
+
+engine:
+  module: flame.core.engine.engine
+  class: Evaluator
+  Evaluator:
+    dataset: config['data']['test']
+    device: '''cuda'''
+
+extralibs:
+  torch: torch
